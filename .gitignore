@@ -1,0 +1,18 @@
+# Database
+*.db
+
+# Face data
+face_data/
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+venv/
+env/
+face_env/
+
+# OS files
+.DS_Store
+Thumbs.db
