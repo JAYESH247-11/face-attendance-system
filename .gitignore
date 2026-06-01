@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+
+# Virtual Environments
+.venv/
+face_env4/
+face_env3/ 
+
+# IDE / Environment files
+.env
+.vscode/
+.idea/
+
+# Databases
+attendance.db
