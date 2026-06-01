@@ -1,11 +1,9 @@
 import os
 import warnings
 
-# 1. Suppress TensorFlow and MediaPipe C++ Logs
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ["GLOG_minloglevel"] = "3" # Bumped to 3 (FATAL only)
 
-# 2. Suppress specific Python warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="google.protobuf.*")
 
 # 3. Force the stubborn absl C++ logger to shut up (Fixes the W0000 warnings)

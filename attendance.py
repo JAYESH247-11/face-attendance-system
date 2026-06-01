@@ -39,6 +39,7 @@ except ImportError:
     FACE_LIB = False
 
 
+
 class AttendancePage(QWidget):
 
     def __init__(self):
