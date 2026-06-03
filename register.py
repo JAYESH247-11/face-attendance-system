@@ -214,7 +214,7 @@ class RegisterPage(QWidget):
 
     def start_camera(self):
         # Use faster backend (Windows)
-        self.cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+        self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
         # Reduce buffer (VERY IMPORTANT)
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 0)
