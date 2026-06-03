@@ -264,10 +264,7 @@ class AttendancePage(QWidget):
                 self.known_ids.append(emp["emp_id"])
                 self.known_names.append(emp["name"])
 
-    # =========================
     # START CAMERA
-    # =========================
-
     def start_camera(self):
         self.load_employees()
         self.is_processing_detection = False

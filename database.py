@@ -68,20 +68,40 @@ def get_all_employees():
         })
     return employees
 
-# def mark_attendance(emp_id):
-#     from datetime import datetime
-#     conn = sqlite3.connect(DB_PATH)
-#     c = conn.cursor()
-#     today = date.today().isoformat()
-#     now = datetime.now().strftime("%H:%M:%S")
-#     try:
-#         c.execute('''INSERT OR IGNORE INTO attendance (emp_id, date, check_in, status)
-#                      VALUES (?, ?, ?, 'Present')''', (emp_id, today, now))
-#         conn.commit()
-#         affected = conn.total_changes
-#         return affected > 0
-#     finally:
-#         conn.close()
+def mark_attendance(emp_id):
+    from datetime import datetime
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    today = date.today().isoformat()
+    now = datetime.now().strftime("%H:%M:%S")
+
+    try:
+        c.execute(
+            "SELECT 1 FROM attendance WHERE emp_id=? AND date=?",
+            (emp_id, today)
+        )
+
+        if c.fetchone():
+            return "ALREADY_DONE"
+
+        c.execute("""
+            INSERT INTO attendance
+            (emp_id, date, check_in, status)
+            VALUES (?, ?, ?, 'Present')
+        """, (emp_id, today, now))
+
+        conn.commit()
+
+        return "SUCCESS"
+
+    except Exception as e:
+        print("Attendance Error:", e)
+        return "FAILED"
+
+    finally:
+        conn.close()
 
 def get_today_attendance():
     conn = sqlite3.connect(DB_PATH)
@@ -113,18 +133,21 @@ def get_stats():
     conn.close()
     return total, present, absent
 
-
 def delete_employee(emp_id):
-    import sqlite3
-
-    DB_PATH = "attendance.db"  
-
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
     try:
-        c.execute("DELETE FROM attendance WHERE emp_id = ?", (emp_id,))
-        c.execute("DELETE FROM employees WHERE emp_id = ?", (emp_id,))
+        c.execute(
+            "DELETE FROM attendance WHERE emp_id=?",
+            (emp_id,)
+        )
+
+        c.execute(
+            "DELETE FROM employees WHERE emp_id=?",
+            (emp_id,)
+        )
+
         conn.commit()
         return True
 
@@ -136,72 +159,26 @@ def delete_employee(emp_id):
         conn.close()
 
 
-def mark_as_absent(emp_id):
-    import sqlite3
-    from datetime import date
-    conn = sqlite3.connect("attendance.db")
-    c = conn.cursor()
-    today = date.today().isoformat()
-    try:
-        c.execute("DELETE FROM attendance WHERE emp_id = ? AND date = ?", (emp_id, today))
-        conn.commit()
-        return True
-    except Exception as e:
-        print("Error marking absent:", e)
-        return False
-    finally:
-        conn.close()    
-
-def mark_attendance(emp_id):
-    from datetime import datetime, date  # Critical: Import both 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    
-    today = date.today().isoformat()
-    now = datetime.now().strftime("%H:%M:%S")
-
-    # Check if attendance already exists for today
-    c.execute("SELECT id FROM attendance WHERE emp_id = ? AND date = ?", (emp_id, today))
-    if c.fetchone():
-        conn.close()
-        return "ALREADY_DONE"
-
-    # If not found, insert new record
-    try:
-        c.execute('''INSERT INTO attendance (emp_id, date, check_in, status)
-                     VALUES (?, ?, ?, 'Present')''', (emp_id, today, now))
-        conn.commit()
-        return "SUCCESS"
-    except Exception as e:
-        print(f"Database Error: {e}")
-        return "ERROR"
-    finally:
-        conn.close()
-
 def get_attendance_by_date(selected_date):
     import sqlite3
-
     conn = sqlite3.connect("attendance.db")
     c = conn.cursor()
-
-    c.execute('''
-        SELECT 
+    c.execute("""
+        SELECT
             e.emp_id,
             e.name,
             e.department,
             a.check_in,
             a.status
         FROM employees e
-        LEFT JOIN attendance a 
-            ON e.emp_id = a.emp_id 
+        LEFT JOIN attendance a
+            ON e.emp_id = a.emp_id
             AND a.date = ?
-    ''', (selected_date,))
+    """, (selected_date,))
 
     rows = c.fetchall()
     conn.close()
-
     result = []
-
     for row in rows:
         result.append({
             "emp_id": row[0],
@@ -210,5 +187,4 @@ def get_attendance_by_date(selected_date):
             "check_in": row[3] if row[3] else "—",
             "status": row[4] if row[4] else "Absent"
         })
-
     return result

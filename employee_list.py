@@ -7,6 +7,9 @@ from PyQt6.QtGui import QColor, QFont
 from database import get_today_attendance, get_stats
 from datetime import date
 from database import get_attendance_by_date
+from popup import StatusPopup
+from PyQt6.QtCore import QPropertyAnimation, QTimer
+
 
 
 
@@ -77,11 +80,63 @@ class EmployeeListPage(QWidget):
 
         date_lbl = QLabel("Date:")
         date_lbl.setObjectName("from_label")
+
         self.date_filter = QDateEdit()
         self.date_filter.setCalendarPopup(True)
+        self.date_filter.setStyleSheet("""
+            QDateEdit {
+                background: #0b1020;
+                color: white;
+                border: 1px solid #00d4ff;
+                border-radius: 6px;
+                padding: 5px;
+            }
+
+            QDateEdit::drop-down {
+                width: 25px;
+                border-left: 1px solid #00d4ff;
+            }
+
+            """)
+        self.date_filter.setDisplayFormat("dd MMM yyyy")
         self.date_filter.setDate(QDate.currentDate())
+        self.date_filter.setMaximumDate(QDate.currentDate())
+        self.date_filter.lineEdit().setReadOnly(True)
+
+        calendar = self.date_filter.calendarWidget()
+        calendar.setMaximumDate(QDate.currentDate())
+        calendar.setMinimumSize(320, 250)
+        calendar.setGridVisible(True)
+
+        # Calendar popup ma future dates grey out + disable
+        self.date_filter.calendarWidget().setMaximumDate(QDate.currentDate())
+
         self.date_filter.setMinimumHeight(36)
         self.date_filter.dateChanged.connect(self.refresh)
+
+        calendar = self.date_filter.calendarWidget()
+
+        calendar.setStyleSheet("""
+        QCalendarWidget {
+            background-color: #0b1020;
+            color: white;
+        }
+
+        QCalendarWidget QWidget#qt_calendar_navigationbar {
+            background-color: #111827;
+        }
+
+        QCalendarWidget QToolButton {
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        QCalendarWidget QAbstractItemView {
+            selection-background-color: #00d4ff;
+            selection-color: black;
+        }
+        """)
 
         filter_layout.addWidget(search_lbl)
         filter_layout.addWidget(self.search_input, 1)
@@ -138,10 +193,47 @@ class EmployeeListPage(QWidget):
             if child.objectName().startswith("_stat_"):
                 child.setText(str(value))
 
-    def refresh(self):
-    # 1. Get selected date
-        selected_date_str = self.date_filter.date().toPyDate().isoformat()
+    def trigger_popup(self, icon, title, subtitle, color):
+        self.popup = StatusPopup(self, icon, title, subtitle, color)
 
+        self.popup.move(
+            (self.width() - self.popup.width()) // 2,
+            (self.height() - self.popup.height()) // 2
+        )
+
+        self.popup.setWindowOpacity(0)
+        self.popup.show()
+
+        self.fade_in = QPropertyAnimation(self.popup, b"windowOpacity")
+        self.fade_in.setDuration(300)
+        self.fade_in.setStartValue(0)
+        self.fade_in.setEndValue(1)
+        self.fade_in.start()
+
+        QTimer.singleShot(2500, self.fade_out_popup)
+
+
+    def fade_out_popup(self):
+        self.fade_out = QPropertyAnimation(self.popup, b"windowOpacity")
+        self.fade_out.setDuration(300)
+        self.fade_out.setStartValue(1)
+        self.fade_out.setEndValue(0)
+        self.fade_out.finished.connect(self.popup.close)
+        self.fade_out.start()
+
+    def refresh(self):
+        selected_date = self.date_filter.date()
+        if selected_date > QDate.currentDate():
+            QMessageBox.warning(
+                self,
+                "Invalid Date",
+                "Future dates are not allowed."
+            )
+
+            self.date_filter.setDate(QDate.currentDate())
+            return
+        
+        selected_date_str = self.date_filter.date().toPyDate().isoformat()
         self.date_lbl.setText(
             f"Date: {self.date_filter.date().toString('dd MMMM yyyy')}"
         )
@@ -195,8 +287,21 @@ class EmployeeListPage(QWidget):
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            delete_employee(emp_id)
-            QMessageBox.information(self, "Deleted", "Employee deleted successfully")
+            success = delete_employee(emp_id)
+            if success:
+                self.trigger_popup(
+                    "🗑️",
+                    "Deleted",
+                    f"Employee {emp_id} deleted successfully",
+                    "#16a34a"
+                )
+            else:
+                self.trigger_popup(
+                    "❌",
+                    "Delete Failed",
+                    f"Could not delete employee {emp_id}",
+                    "#dc2626"
+                )
             self.refresh()
 
     def apply_filter(self):
@@ -240,7 +345,6 @@ class EmployeeListPage(QWidget):
                 QPushButton { background: transparent; font-size:16px; }
                 QPushButton:hover { color: red; }
             """)
-
             delete_btn.clicked.connect(
                 lambda _, emp_id=rec["emp_id"]: self.delete_employee(emp_id)
             )
@@ -253,6 +357,6 @@ class EmployeeListPage(QWidget):
             )
         else:
             self.footer_lbl.setText(
-                f"Showing {len(filtered)} of {len(self.all_records)} employees  •  "
-                f"{date.today().strftime('%d %B %Y')}"
+                f"Showing {len(filtered)} of {len(self.all_records)} employees • "
+                f"{self.date_filter.date().toString('dd MMMM yyyy')}"
             )
